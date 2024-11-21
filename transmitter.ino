@@ -3,20 +3,26 @@
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
+// Налаштування GPS і LoRa
 TinyGPSPlus gps;
-SoftwareSerial gpsSerial(3, 4);
+SoftwareSerial gpsSerial(3, 4); // GPS TX на D3, GPS RX на D4
 
+// Піни для LoRa
 #define SCK 13
 #define MISO 12
 #define MOSI 11
 #define SS 10
 #define RST 9
 #define DIO0 2
+#define BTN 6
 
 void setup() {
+  // Налаштування серійного монітора
   pinMode(13, OUTPUT);
+  pinMode(BTN, INPUT_PULLUP);
   Serial.begin(9600);
   gpsSerial.begin(9600);
+  // Налаштування LoRa
 
   if (!LoRa.begin(433E6)) {
     Serial.println("Помилка запуску LoRa!");
@@ -26,26 +32,40 @@ void setup() {
 }
 
 void loop() {
+  // Читання даних з GPS
   while (gpsSerial.available() > 0) {
-    gps.encode(gpsSerial.read());
+  gps.encode(gpsSerial.read());
   }
 
+
+  // Перевірка наявності нових даних GPS gps.location.isUpdated() gps.location.isValid()
   if (gps.location.isValid()) {
     double latitude = gps.location.lat();
     double longitude = gps.location.lng();
 
+    // Виведення координат у серійний монітор
     Serial.print("Latitude: ");
     Serial.println(latitude, 6);
     Serial.print("Longitude: ");
     Serial.println(longitude, 6);
+    
 
+    // Передача координат через LoRa
     LoRa.beginPacket();
     LoRa.print(latitude, 6);
     LoRa.print(',');
     LoRa.print(longitude, 6);
-    LoRa.endPacket();
 
-    delay(10000);
+    if (digitalRead(BTN) == LOW) {
+      LoRa.print(1);
+    } else {
+      LoRa.print(0);
+    }
+    LoRa.endPacket();
+    
+    // Затримка між передачами
+    delay(10000); 
     asm volatile ("jmp 0");
-  }
+
+   }
 }
